@@ -8,6 +8,7 @@ demand multipliers, and binding quota computation.
 import unittest
 import json
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from agent import Action, LLMAgent
 from environment import CommonsEnv
@@ -302,6 +303,33 @@ class ExportMetadataTests(unittest.TestCase):
         self.assertEqual(data["protocol"]["protocol_version"], "research_v1")
         self.assertEqual(data["clean_run"], True)
         self.assertEqual(data["fallback_events"], 0)
+
+    def test_run_export_marks_fallback_contamination(self):
+        with patch(
+            "simulation_core._query_agent",
+            side_effect=TimeoutError("forced timeout for metadata test"),
+        ):
+            out = run_simulation(
+                config=ExperimentConfig(name="test_no_comm", communication=False),
+                roster_name="heterogeneous",
+                prompt_mode="benchmark",
+                realism_name="perfect",
+                demand_regime_name="medium",
+                need_visibility="private",
+                seed=123,
+                temperature=0.0,
+                max_rounds=1,
+                render=False,
+                sleep_seconds=0,
+                agent_timeout_seconds=0.01,
+            )
+
+        with open(out) as f:
+            data = json.load(f)
+
+        self.assertFalse(data["clean_run"])
+        self.assertGreater(data["fallback_events"], 0)
+        self.assertIn("provider_fallbacks_present", data["exclusion_reasons"])
 
     def test_rotated_rosters_are_registered(self):
         self.assertIn("heterogeneous_rot0", ROSTERS)

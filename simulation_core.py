@@ -16,6 +16,7 @@ import sys
 import time
 from dataclasses import asdict
 from datetime import datetime
+from urllib import error, request
 
 import groq
 from google import genai
@@ -102,6 +103,46 @@ def _runtime_metadata(
             "parallel_agent_calls": parallel_agent_calls,
             "agent_call_delay_seconds": agent_call_delay_seconds,
         },
+    }
+
+
+def _ollama_model_metadata(agents: list[AgentProtocol]) -> dict | None:
+    if not any(agent.provider == "ollama" for agent in agents):
+        return None
+    model = next((agent.model for agent in agents if agent.provider == "ollama"), None)
+    if not model:
+        return None
+
+    host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+    payload = {"model": model}
+    req = request.Request(
+        f"{host}/api/show",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (error.URLError, TimeoutError, json.JSONDecodeError):
+        return {"model": model, "show_api_available": False}
+
+    details = data.get("details", {})
+    return {
+        "model": model,
+        "show_api_available": True,
+        "modelfile": data.get("modelfile"),
+        "parameters": data.get("parameters"),
+        "template": data.get("template"),
+        "details": {
+            "format": details.get("format"),
+            "family": details.get("family"),
+            "families": details.get("families"),
+            "parameter_size": details.get("parameter_size"),
+            "quantization_level": details.get("quantization_level"),
+            "parent_model": details.get("parent_model"),
+        },
+        "model_info": data.get("model_info"),
     }
 
 
@@ -714,6 +755,7 @@ def run_simulation(
             parallel_agent_calls=parallel_agent_calls,
             agent_call_delay_seconds=agent_call_delay_seconds,
         ),
+        "model_runtime": _ollama_model_metadata(agents),
         "experiment": asdict(config),
         "roster": roster_name,
         "prompt_mode": prompt_mode,

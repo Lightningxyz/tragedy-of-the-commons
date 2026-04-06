@@ -23,6 +23,7 @@ SUMMARY_FIELDS = [
     "realism",
     "demand_regime",
     "need_visibility",
+    "n_clean_runs",
     "n_runs",
     "survival_rate",
     "mean_rounds_completed",
@@ -68,6 +69,7 @@ SUMMARY_FIELDS = [
 def _load_runs(
     results_dir: str,
     max_provider_fallback_rate: float | None = None,
+    clean_only: bool = False,
 ) -> list[dict[str, Any]]:
     runs = []
     for path in glob.glob(os.path.join(results_dir, "*.json")):
@@ -101,6 +103,8 @@ def _load_runs(
             fallback_rate = provider_fallbacks / total_agent_turns if total_agent_turns else 0
             if fallback_rate > max_provider_fallback_rate:
                 continue
+        if clean_only and not data.get("clean_run", False):
+            continue
         runs.append({"path": path, **data})
     return runs
 
@@ -147,6 +151,7 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "realism": realism,
             "demand_regime": demand_regime,
             "need_visibility": need_visibility,
+            "n_clean_runs": sum(1 for run in group if run.get("clean_run", False)),
             "n_runs": len(group),
             "survival_rate": mean(1 if m.get("survived") else 0 for m in metrics),
             "mean_rounds_completed": mean(rounds),
@@ -292,12 +297,23 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Exclude runs whose provider fallback rate exceeds this threshold.",
     )
+    parser.add_argument(
+        "--clean-only",
+        action="store_true",
+        help="Only include runs marked clean_run=true.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    rows = aggregate_runs(_load_runs(args.results_dir, args.max_provider_fallback_rate))
+    rows = aggregate_runs(
+        _load_runs(
+            args.results_dir,
+            args.max_provider_fallback_rate,
+            clean_only=args.clean_only,
+        )
+    )
     write_csv(rows, args.out)
     print_table(rows)
     print(f"\nWrote {args.out}")
