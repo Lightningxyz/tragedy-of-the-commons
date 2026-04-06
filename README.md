@@ -1,46 +1,20 @@
 # Tragedy of the Commons
 
-A multi-agent simulation framework for studying how LLM-backed organizations behave when exploiting a shared, regenerating resource.
+Multi-agent commons-governance simulation with LLM-backed agents, scripted baselines, institutional interventions, and structured experiment exports.
 
-This project models a repeated commons dilemma with stakeholder agents, public messaging, institutional interventions, and researcher-friendly run exports. It can be used as:
+## Overview
 
-- a sandbox for multi-agent LLM behavior
-- a governance-mechanism simulator
-- a reproducible experiment harness for comparing communication and policy regimes
+This repository implements a repeated shared-resource simulation in which multiple agents extract from a regenerating common pool under different governance conditions. Agents can communicate publicly, maintain limited memory, and operate under institutional rules such as ledgers, pledges, quotas, sanctions, contracts, and moratoria.
 
-## Why This Project Is Interesting
+The codebase supports:
 
-Most LLM demos stop at a single agent making a single decision. This project looks at something messier and more realistic:
+- LLM-backed agents
+- scripted baseline agents
+- single-model and heterogeneous rosters
+- local Ollama inference
+- structured JSON exports for downstream analysis
 
-- multiple agents with conflicting incentives
-- repeated interaction over many rounds
-- shared-resource depletion and recovery
-- public rhetoric that can diverge from actual behavior
-- institutional mechanisms such as ledgers, pledges, quotas, sanctions, contracts, and moratoria
-
-It is designed to make those interactions measurable. Runs export structured JSON with metrics for survival, extraction, inequality, need satisfaction, and governance credibility.
-
-## Features
-
-- LLM-backed and scripted agents
-- heterogeneous stakeholder personas
-- single-model and mixed-model rosters
-- local Ollama support
-- public communication between agents
-- institutional conditions:
-  - no communication
-  - cheap talk
-  - public ledger
-  - nonbinding pledges
-  - binding quotas
-  - sanctions
-  - negotiated contracts
-  - moratoria
-- result export with protocol/runtime metadata
-- contamination tracking for fallback-affected runs
-- aggregation script for summarizing multiple runs
-
-## Quick Start
+## Installation
 
 Install dependencies:
 
@@ -48,27 +22,49 @@ Install dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
-Run a simple offline baseline:
+## Running
+
+Run a single experiment:
 
 ```bash
-python3 cli.py --experiment public_ledger --roster scripted_baselines --max-rounds 5 --no-sleep
+python3 cli.py --experiment public_ledger --roster scripted_baselines
 ```
 
-Run the test suite:
+Run the full institutional suite:
 
 ```bash
-PYTHONPATH=. pytest -q
+python3 cli.py --experiment suite --roster scripted_baselines
 ```
 
-## Running With Local Ollama
-
-The repo supports a local single-model Ollama roster.
-
-Example:
+Run a local Ollama-backed single-model roster:
 
 ```bash
 OLLAMA_MODEL='gemma3:4b' python3 cli.py --experiment public_ledger --roster single_model_ollama --max-rounds 5 --temperature 0.0
 ```
+
+Run a hosted-model configuration with throttling:
+
+```bash
+python3 cli.py --experiment public_ledger --roster single_model_qwen --agent-call-delay-seconds 1.5
+```
+
+## CLI Options
+
+Commonly used options:
+
+- `--experiment`: institutional condition or `suite`
+- `--roster`: model ecology / agent roster
+- `--prompt-mode`: `benchmark` or `naturalistic`
+- `--realism`: realism profile
+- `--demand-regime`: private demand regime
+- `--need-visibility`: `private`, `public`, or `audited`
+- `--max-rounds`: number of rounds
+- `--trials`: repeated runs
+- `--temperature`: model temperature
+- `--agent-call-delay-seconds`: delay between sequential agent calls
+- `--parallel-agent-calls`: opt back into concurrent agent calls
+
+## Local Ollama Configuration
 
 Optional environment variables:
 
@@ -79,59 +75,17 @@ export OLLAMA_FLASH_ATTENTION='1'
 export OLLAMA_KV_CACHE_TYPE='q8_0'
 ```
 
-## Running With Hosted APIs
+## Testing
 
-Hosted APIs are supported, but repeated multi-agent runs can hit rate limits. The code reduces pressure by:
-
-- querying agents sequentially by default
-- supporting an inter-agent delay
-- using a compact prompt budget
-
-Example:
+Run the test suite:
 
 ```bash
-python3 cli.py --experiment public_ledger --roster single_model_qwen --agent-call-delay-seconds 1.5
+PYTHONPATH=. pytest -q
 ```
 
-## Example Experiments
+## Results
 
-Run one institutional condition:
-
-```bash
-python3 cli.py --experiment public_ledger --roster scripted_baselines
-```
-
-Run the whole institutional suite:
-
-```bash
-python3 cli.py --experiment suite --roster scripted_baselines
-```
-
-Run a local single-model LLM society:
-
-```bash
-OLLAMA_MODEL='gemma3:4b' python3 cli.py --experiment public_ledger --roster single_model_ollama --prompt-mode benchmark --realism perfect --demand-regime medium --need-visibility private --max-rounds 10
-```
-
-## Result Format
-
-Each exported JSON includes:
-
-- experiment configuration
-- per-turn requests, grants, messages, and model status
-- aggregate metrics
-- protocol metadata
-- runtime metadata
-- cleanliness metadata:
-  - `clean_run`
-  - `fallback_events`
-  - `exclusion_reasons`
-
-This makes it easier to separate exploratory runs from dataset-quality runs.
-
-## Aggregation
-
-Aggregate runs into a CSV:
+Simulation outputs are written to `results/` as JSON and JSONL artifacts. Aggregated summaries can be generated with:
 
 ```bash
 python3 analyze_results.py --results-dir results --out results/summary.csv
@@ -143,30 +97,31 @@ Aggregate only clean runs:
 python3 analyze_results.py --results-dir results --out results/summary_clean.csv --clean-only
 ```
 
-## Project Structure
+Each exported run includes:
 
-- [cli.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/cli.py): command-line entrypoint
-- [simulation_core.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/simulation_core.py): orchestration loop
-- [agent.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/agent.py): LLM agent logic
-- [scripted_agents.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/scripted_agents.py): non-LLM baselines
-- [environment.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/environment.py): shared-resource dynamics
-- [institutions.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/institutions.py): governance rules
-- [metrics.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/metrics.py): evaluation metrics
-- [analyze_results.py](/Users/karan/Desktop/Projects/multiagent/commons_sim/analyze_results.py): multi-run aggregation
-- [tests/](/Users/karan/Desktop/Projects/multiagent/commons_sim/tests): unit tests
+- experiment configuration
+- per-turn actions, grants, and messages
+- aggregate metrics
+- protocol metadata
+- runtime metadata
+- cleanliness metadata (`clean_run`, `fallback_events`, `exclusion_reasons`)
 
-## Resume-Friendly Summary
+## Repository Structure
 
-If you want to mention this project on a resume, a strong one-line version is:
-
-Built a multi-agent LLM simulation of commons governance with institutional interventions, reproducible experiment exports, and behavioral metrics for sustainability, inequality, and rhetoric-action divergence.
-
-Shorter version:
-
-Built a multi-agent LLM commons-governance simulator with quotas, sanctions, contracts, and reproducible evaluation tooling.
+- `cli.py`: command-line entrypoint
+- `simulation_core.py`: simulation orchestration
+- `agent.py`: LLM agent implementation
+- `scripted_agents.py`: scripted baselines
+- `environment.py`: commons environment dynamics
+- `institutions.py`: institutional rules and policy state
+- `observations.py`: observation and demand pipelines
+- `metrics.py`: run-level metrics
+- `analyze_results.py`: aggregation over result files
+- `judge_messages.py`: optional post-hoc message coding
+- `tests/`: unit tests
 
 ## Notes
 
-- Generated outputs are written to `results/` and `reports/`
-- These directories are ignored by Git
-- For large experimental sweeps, local or dedicated GPU inference is more practical than shared token-metered APIs
+- Generated artifacts in `results/` and `reports/` are ignored by Git.
+- Hosted APIs may require throttling for large multi-agent runs.
+- Local or dedicated GPU inference is more practical for large experimental sweeps.
